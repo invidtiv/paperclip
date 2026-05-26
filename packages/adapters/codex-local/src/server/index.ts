@@ -1,4 +1,5 @@
 export { execute, ensureCodexSkillsInjected } from "./execute.js";
+export { detectModel, parseCodexConfiguredModel } from "./detect-model.js";
 export { listCodexSkills, syncCodexSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
 export { parseCodexJsonl, isCodexTransientUpstreamError, isCodexUnknownSessionError } from "./parse.js";

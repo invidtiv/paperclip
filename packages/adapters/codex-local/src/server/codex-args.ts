@@ -28,6 +28,11 @@ function formatFastModeSupportedModels(): string {
   return `${CODEX_LOCAL_FAST_MODE_SUPPORTED_MODELS.join(", ")} or manually configured model IDs`;
 }
 
+function normalizeModelForCli(value: string): string {
+  const model = value.trim();
+  return model.toLowerCase() === "auto" ? "" : model;
+}
+
 export function buildCodexExecArgs(
   config: unknown,
   options: {
@@ -36,7 +41,7 @@ export function buildCodexExecArgs(
   } = {},
 ): BuildCodexExecArgsResult {
   const record = asRecord(config);
-  const model = asString(record.model, "").trim();
+  const model = normalizeModelForCli(asString(record.model, ""));
   const modelReasoningEffort = asString(
     record.modelReasoningEffort,
     asString(record.reasoningEffort, ""),

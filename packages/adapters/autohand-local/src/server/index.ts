@@ -1,13 +1,10 @@
 export { execute } from "./execute.js";
-export { detectModel } from "./detect-model.js";
-export { listGeminiSkills, syncGeminiSkills } from "./skills.js";
+export { listAutohandSkills, syncAutohandSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
 export {
-  parseGeminiJsonl,
-  isGeminiUnknownSessionError,
-  describeGeminiFailure,
-  detectGeminiAuthRequired,
-  isGeminiTurnLimitResult,
+  parseAutohandJsonl,
+  isAutohandUnknownSessionError,
+  describeAutohandFailure,
 } from "./parse.js";
 import type { AdapterSessionCodec } from "@paperclipai/adapter-utils";
 

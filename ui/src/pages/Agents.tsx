@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "@/lib/router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { agentsApi, type OrgNode } from "../api/agents";
 import { heartbeatsApi } from "../api/heartbeats";
 import { useCompany } from "../context/CompanyContext";
@@ -23,6 +23,7 @@ import { AGENT_ROLE_LABELS, type Agent } from "@paperclipai/shared";
 import { getAdapterLabel } from "../adapters/adapter-display-registry";
 
 const roleLabels = AGENT_ROLE_LABELS as Record<string, string>;
+const detectableModelAdapterTypes = new Set(["codex_local", "gemini_local"]);
 
 type FilterTab = "all" | "active" | "paused" | "error";
 
@@ -46,6 +47,14 @@ function getConfiguredModel(agent: Agent): string | null {
   if (typeof value !== "string") return null;
   const model = value.trim();
   return model.length > 0 ? model : null;
+}
+
+function getDisplayModel(agent: Agent, detectedModelByAdapterType: Map<string, string>): string | null {
+  const model = getConfiguredModel(agent);
+  if (!model) return null;
+  if (model.toLowerCase() !== "auto") return model;
+  const detected = detectedModelByAdapterType.get(agent.adapterType);
+  return detected ? `auto (${detected})` : model;
 }
 
 function filterOrgTree(nodes: OrgNode[], tab: FilterTab, showTerminated: boolean): OrgNode[] {
@@ -93,6 +102,40 @@ export function Agents() {
     enabled: !!selectedCompanyId,
     refetchInterval: 15_000,
   });
+
+  const autoModelAdapterTypes = useMemo(() => {
+    const adapterTypes = new Set<string>();
+    for (const agent of agents ?? []) {
+      if (
+        detectableModelAdapterTypes.has(agent.adapterType) &&
+        getConfiguredModel(agent)?.toLowerCase() === "auto"
+      ) {
+        adapterTypes.add(agent.adapterType);
+      }
+    }
+    return Array.from(adapterTypes).sort();
+  }, [agents]);
+
+  const detectedModelQueries = useQueries({
+    queries: autoModelAdapterTypes.map((adapterType) => ({
+      queryKey: selectedCompanyId
+        ? queryKeys.agents.detectModel(selectedCompanyId, adapterType)
+        : ["agents", "detect-model", "disabled", adapterType],
+      queryFn: () => agentsApi.detectModel(selectedCompanyId!, adapterType),
+      enabled: !!selectedCompanyId,
+      staleTime: 60_000,
+    })),
+  });
+
+  const detectedModelByAdapterType = useMemo(() => {
+    const map = new Map<string, string>();
+    detectedModelQueries.forEach((query, index) => {
+      const adapterType = autoModelAdapterTypes[index];
+      const model = query.data?.model?.trim();
+      if (adapterType && model) map.set(adapterType, model);
+    });
+    return map;
+  }, [autoModelAdapterTypes, detectedModelQueries]);
 
   // Map agentId -> first live run + live run count
   const liveRunByAgent = useMemo(() => {
@@ -225,6 +268,7 @@ export function Agents() {
       {effectiveView === "list" && filtered.length > 0 && (
         <div className="border border-border">
           {filtered.map((agent) => {
+            const displayModel = getDisplayModel(agent, detectedModelByAdapterType);
             return (
               <EntityRow
                 key={agent.id}
@@ -265,9 +309,9 @@ export function Agents() {
                       </span>
                       <span
                         className="w-36 truncate text-left font-mono text-xs text-muted-foreground"
-                        title={getConfiguredModel(agent) ?? undefined}
+                        title={displayModel ?? undefined}
                       >
-                        {getConfiguredModel(agent) ?? "—"}
+                        {displayModel ?? "—"}
                       </span>
                       <span className="text-xs text-muted-foreground w-16 text-right">
                         {agent.lastHeartbeatAt ? relativeTime(agent.lastHeartbeatAt) : "—"}
@@ -294,7 +338,15 @@ export function Agents() {
       {effectiveView === "org" && filteredOrg.length > 0 && (
         <div className="border border-border py-1">
           {filteredOrg.map((node) => (
-            <OrgTreeNode key={node.id} node={node} depth={0} agentMap={agentMap} liveRunByAgent={liveRunByAgent} tab={tab} />
+            <OrgTreeNode
+              key={node.id}
+              node={node}
+              depth={0}
+              agentMap={agentMap}
+              liveRunByAgent={liveRunByAgent}
+              detectedModelByAdapterType={detectedModelByAdapterType}
+              tab={tab}
+            />
           ))}
         </div>
       )}
@@ -319,15 +371,18 @@ function OrgTreeNode({
   depth,
   agentMap,
   liveRunByAgent,
+  detectedModelByAdapterType,
   tab,
 }: {
   node: OrgNode;
   depth: number;
   agentMap: Map<string, Agent>;
   liveRunByAgent: Map<string, { runId: string; liveCount: number }>;
+  detectedModelByAdapterType: Map<string, string>;
   tab: FilterTab;
 }) {
   const agent = agentMap.get(node.id);
+  const displayModel = agent ? getDisplayModel(agent, detectedModelByAdapterType) : null;
 
   const statusColor = agentStatusDot[node.status] ?? agentStatusDotDefault;
 
@@ -374,9 +429,9 @@ function OrgTreeNode({
                 </span>
                 <span
                   className="w-36 truncate text-left font-mono text-xs text-muted-foreground"
-                  title={getConfiguredModel(agent) ?? undefined}
+                  title={displayModel ?? undefined}
                 >
-                  {getConfiguredModel(agent) ?? "—"}
+                  {displayModel ?? "—"}
                 </span>
                 <span className="text-xs text-muted-foreground w-16 text-right">
                   {agent.lastHeartbeatAt ? relativeTime(agent.lastHeartbeatAt) : "—"}
@@ -392,7 +447,15 @@ function OrgTreeNode({
       {node.reports && node.reports.length > 0 && (
         <div className="border-l border-border/50 ml-4">
           {node.reports.map((child) => (
-            <OrgTreeNode key={child.id} node={child} depth={depth + 1} agentMap={agentMap} liveRunByAgent={liveRunByAgent} tab={tab} />
+            <OrgTreeNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              agentMap={agentMap}
+              liveRunByAgent={liveRunByAgent}
+              detectedModelByAdapterType={detectedModelByAdapterType}
+              tab={tab}
+            />
           ))}
         </div>
       )}

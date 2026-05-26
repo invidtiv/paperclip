@@ -323,6 +323,7 @@ const SESSIONED_LOCAL_ADAPTERS = new Set([
   "hermes_local",
   "opencode_local",
   "pi_local",
+  "autohand_local",
 ]);
 const INLINE_BASE64_IMAGE_DATA_RE = /("type":"image","source":\{"type":"base64","data":")([A-Za-z0-9+/=]{1024,})(")/g;
 
@@ -5975,6 +5976,11 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
       .set({
         status: "running",
         startedAt: run.startedAt ?? claimedAt,
+        finishedAt: null,
+        error: null,
+        errorCode: null,
+        exitCode: null,
+        signal: null,
         updatedAt: claimedAt,
       })
       .where(and(eq(heartbeatRuns.id, run.id), eq(heartbeatRuns.status, "queued")))
@@ -7591,14 +7597,21 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
       const runningWithSession = await db
         .update(heartbeatRuns)
         .set({
+          status: "running",
           startedAt,
+          finishedAt: null,
+          error: null,
+          errorCode: null,
+          exitCode: null,
+          signal: null,
           sessionIdBefore: runtimeForAdapter.sessionDisplayId ?? runtimeForAdapter.sessionId,
           contextSnapshot: context,
           updatedAt: new Date(),
         })
-        .where(eq(heartbeatRuns.id, run.id))
+        .where(and(eq(heartbeatRuns.id, run.id), sql`${heartbeatRuns.status} != 'cancelled'`))
         .returning()
         .then((rows) => rows[0] ?? null);
+      if (!runningWithSession) return;
       if (runningWithSession) run = runningWithSession;
 
       const runningAgent = await db
@@ -7872,12 +7885,14 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
 
       let outcome: "succeeded" | "failed" | "cancelled" | "timed_out";
       const latestRun = await getRun(run.id);
-      if (isHeartbeatRunTerminalStatus(latestRun?.status)) {
+      if (latestRun?.status === "cancelled") {
         outcome = latestRun.status;
       } else if (adapterResult.timedOut) {
         outcome = "timed_out";
       } else if ((adapterResult.exitCode ?? 0) === 0 && !adapterResult.errorMessage) {
         outcome = "succeeded";
+      } else if (latestRun?.status === "failed" || latestRun?.status === "timed_out") {
+        outcome = latestRun.status;
       } else {
         outcome = "failed";
       }

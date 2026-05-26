@@ -41,6 +41,7 @@ import {
   testEnvironment as codexTestEnvironment,
   sessionCodec as codexSessionCodec,
   getQuotaWindows as codexGetQuotaWindows,
+  detectModel as detectCodexModel,
 } from "@paperclipai/adapter-codex-local/server";
 import {
   agentConfigurationDoc as codexAgentConfigurationDoc,
@@ -72,12 +73,25 @@ import {
   syncGeminiSkills,
   testEnvironment as geminiTestEnvironment,
   sessionCodec as geminiSessionCodec,
+  detectModel as detectGeminiModel,
 } from "@paperclipai/adapter-gemini-local/server";
 import {
   agentConfigurationDoc as geminiAgentConfigurationDoc,
   models as geminiModels,
   modelProfiles as geminiModelProfiles,
 } from "@paperclipai/adapter-gemini-local";
+import {
+  execute as autohandExecute,
+  listAutohandSkills,
+  syncAutohandSkills,
+  testEnvironment as autohandTestEnvironment,
+  sessionCodec as autohandSessionCodec,
+} from "@paperclipai/adapter-autohand-local/server";
+import {
+  agentConfigurationDoc as autohandAgentConfigurationDoc,
+  models as autohandModels,
+  modelProfiles as autohandModelProfiles,
+} from "@paperclipai/adapter-autohand-local";
 import {
   execute as grokExecute,
   listGrokSkills,
@@ -298,6 +312,7 @@ const codexLocalAdapter: ServerAdapterModule = {
   modelProfiles: codexModelProfiles,
   listModels: listCodexModels,
   refreshModels: refreshCodexModels,
+  detectModel: detectCodexModel,
   supportsLocalAgentJwt: true,
   supportsInstructionsBundle: true,
   instructionsPathKey: "instructionsFilePath",
@@ -351,6 +366,7 @@ const geminiLocalAdapter: ServerAdapterModule = {
   sessionManagement: getAdapterSessionManagement("gemini_local") ?? undefined,
   models: geminiModels,
   modelProfiles: geminiModelProfiles,
+  detectModel: detectGeminiModel,
   supportsLocalAgentJwt: true,
   supportsInstructionsBundle: true,
   instructionsPathKey: "instructionsFilePath",
@@ -359,6 +375,26 @@ const geminiLocalAdapter: ServerAdapterModule = {
     buildNpmRuntimeCommandSpec(config, "gemini", "@google/gemini-cli"),
   agentConfigurationDoc: geminiAgentConfigurationDoc,
 };
+
+const autohandLocalAdapter: ServerAdapterModule = {
+  type: "autohand_local",
+  execute: autohandExecute,
+  testEnvironment: autohandTestEnvironment,
+  listSkills: listAutohandSkills,
+  syncSkills: syncAutohandSkills,
+  sessionCodec: autohandSessionCodec,
+  sessionManagement: getAdapterSessionManagement("autohand_local") ?? undefined,
+  models: autohandModels,
+  modelProfiles: autohandModelProfiles,
+  supportsLocalAgentJwt: true,
+  supportsInstructionsBundle: true,
+  instructionsPathKey: "instructionsFilePath",
+  requiresMaterializedRuntimeSkills: true,
+  getRuntimeCommandSpec: (config) =>
+    buildNpmRuntimeCommandSpec(config, "autohand", "autohand-cli"),
+  agentConfigurationDoc: autohandAgentConfigurationDoc,
+};
+
 
 const grokLocalAdapter: ServerAdapterModule = {
   type: "grok_local",
@@ -518,6 +554,7 @@ function registerBuiltInAdapters() {
     cursorCloudAdapter,
     cursorLocalAdapter,
     geminiLocalAdapter,
+    autohandLocalAdapter,
     grokLocalAdapter,
     openclawGatewayAdapter,
     hermesLocalAdapter,

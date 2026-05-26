@@ -51,4 +51,10 @@ describe("buildCodexLocalConfig", () => {
       dangerouslyBypassApprovalsAndSandbox: true,
     });
   });
+
+  it("defaults Codex model selection to auto so the CLI config remains authoritative", () => {
+    const config = buildCodexLocalConfig(makeValues({ model: "" }));
+
+    expect(config.model).toBe("auto");
+  });
 });

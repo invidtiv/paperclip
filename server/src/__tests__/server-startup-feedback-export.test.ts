@@ -20,7 +20,9 @@ const {
   const createAppMock = vi.fn(async () => ((_: unknown, __: unknown) => {}) as never);
   const createBetterAuthInstanceMock = vi.fn(() => ({}));
   const createDbMock = vi.fn(() => ({}) as never);
-  const detectPortMock = vi.fn(async (port: number) => port);
+  const detectPortMock = vi.fn(async (port: number | { port?: number | string }) =>
+    typeof port === "object" ? Number(port.port) : port,
+  );
   const deriveAuthTrustedOriginsMock = vi.fn(() => []);
   const feedbackExportServiceMock = {
     flushPendingFeedbackTraces: vi.fn(async () => ({ attempted: 0, sent: 0, failed: 0 })),

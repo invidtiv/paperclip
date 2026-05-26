@@ -43,6 +43,7 @@ import {
 } from "@paperclipai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
+import { DEFAULT_AUTOHAND_LOCAL_MODEL } from "@paperclipai/adapter-autohand-local";
 import { DEFAULT_OPENCODE_LOCAL_MODEL, isValidOpenCodeModelId } from "@paperclipai/adapter-opencode-local";
 import { resolveRouteOnboardingOptions } from "../lib/onboarding-route";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
@@ -224,6 +225,7 @@ export function OnboardingWizard() {
     claude_local: "claude",
     codex_local: "codex",
     gemini_local: "gemini",
+    autohand_local: "autohand",
     pi_local: "pi",
     cursor: "agent",
     opencode_local: "opencode",
@@ -326,6 +328,8 @@ export function OnboardingWizard() {
           ? model || DEFAULT_CODEX_LOCAL_MODEL
           : adapterType === "gemini_local"
             ? model || DEFAULT_GEMINI_LOCAL_MODEL
+          : adapterType === "autohand_local"
+            ? model || DEFAULT_AUTOHAND_LOCAL_MODEL
           : adapterType === "cursor"
             ? model || DEFAULT_CURSOR_LOCAL_MODEL
             : adapterType === "opencode_local"
@@ -815,6 +819,10 @@ export function OnboardingWizard() {
                                 setModel(DEFAULT_GEMINI_LOCAL_MODEL);
                                 return;
                               }
+                              if (nextType === "autohand_local" && !model) {
+                                setModel(DEFAULT_AUTOHAND_LOCAL_MODEL);
+                                return;
+                              }
                               if (nextType === "cursor" && !model) {
                                 setModel(DEFAULT_CURSOR_LOCAL_MODEL);
                                 return;
@@ -1015,6 +1023,8 @@ export function OnboardingWizard() {
                               ? `${effectiveAdapterCommand} exec --json -`
                               : adapterType === "gemini_local"
                                 ? `${effectiveAdapterCommand} --output-format json "Respond with hello."`
+                              : adapterType === "autohand_local"
+                                ? `${effectiveAdapterCommand} --output-format stream-json --prompt "Respond with hello." --yes`
                               : adapterType === "opencode_local"
                                 ? `${effectiveAdapterCommand} run --format json "Respond with hello."`
                               : `${effectiveAdapterCommand} --print - --output-format stream-json --verbose`}
@@ -1026,6 +1036,7 @@ export function OnboardingWizard() {
                           {adapterType === "cursor" ||
                           adapterType === "codex_local" ||
                           adapterType === "gemini_local" ||
+                          adapterType === "autohand_local" ||
                           adapterType === "opencode_local" ? (
                             <p className="text-muted-foreground">
                               If auth fails, set{" "}
@@ -1034,7 +1045,9 @@ export function OnboardingWizard() {
                                   ? "CURSOR_API_KEY"
                                   : adapterType === "gemini_local"
                                     ? "GEMINI_API_KEY"
-                                    : "OPENAI_API_KEY"}
+                                    : adapterType === "autohand_local"
+                                      ? "AUTOHAND_API_KEY"
+                                      : "OPENAI_API_KEY"}
                               </span>{" "}
                               in env or run{" "}
                               <span className="font-mono">
@@ -1044,7 +1057,9 @@ export function OnboardingWizard() {
                                     ? "codex login"
                                     : adapterType === "gemini_local"
                                       ? "gemini auth"
-                                      : "opencode auth login"}
+                                      : adapterType === "autohand_local"
+                                        ? "autohand login"
+                                        : "opencode auth login"}
                               </span>
                               .
                             </p>

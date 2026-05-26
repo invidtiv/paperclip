@@ -11,6 +11,7 @@ import { Agents } from "./Agents";
 const mockAgentsApi = vi.hoisted(() => ({
   list: vi.fn(),
   org: vi.fn(),
+  detectModel: vi.fn(),
 }));
 
 const mockHeartbeatsApi = vi.hoisted(() => ({
@@ -119,6 +120,7 @@ describe("Agents", () => {
         reports: [],
       },
     ]);
+    mockAgentsApi.detectModel.mockResolvedValue(null);
     mockHeartbeatsApi.liveRunsForCompany.mockResolvedValue([]);
   });
 
@@ -149,5 +151,31 @@ describe("Agents", () => {
 
     expect(container.textContent).toContain("codex_local");
     expect(container.textContent).toContain("gpt-5.4");
+  });
+
+  it("shows the detected CLI model for local adapters configured as auto", async () => {
+    mockAgentsApi.list.mockResolvedValue([
+      makeAgent({ adapterConfig: { model: "auto" } }),
+    ]);
+    mockAgentsApi.detectModel.mockResolvedValue({
+      model: "gpt-5.5",
+      provider: "openai",
+      source: "/home/bsdev/.codex/config.toml",
+    });
+
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <QueryClientProvider client={queryClient}>
+          <Agents />
+        </QueryClientProvider>,
+      );
+    });
+    await flushReact();
+    await flushReact();
+    await flushReact();
+
+    expect(mockAgentsApi.detectModel).toHaveBeenCalledWith("company-1", "codex_local");
+    expect(container.textContent).toContain("auto (gpt-5.5)");
   });
 });

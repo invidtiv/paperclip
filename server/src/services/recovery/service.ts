@@ -78,6 +78,7 @@ const SESSIONED_LOCAL_ADAPTERS = new Set([
   "hermes_local",
   "opencode_local",
   "pi_local",
+  "autohand_local",
 ]);
 
 type RecoveryWakeupOptions = {

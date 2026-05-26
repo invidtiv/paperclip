@@ -38,6 +38,7 @@ const REMOTE_MANAGED_ADAPTERS = new Set<AgentAdapterType>([
   "gemini_local",
   "opencode_local",
   "pi_local",
+  "autohand_local",
 ]);
 
 export function adapterSupportsRemoteManagedEnvironments(adapterType: string): boolean {

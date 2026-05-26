@@ -78,6 +78,11 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     description: "Local Gemini agent",
     icon: Gem,
   },
+  autohand_local: {
+    label: "Autohand CLI",
+    description: "Local Autohand agent",
+    icon: Bot,
+  },
   grok_local: {
     label: "Grok Build",
     description: "Local Grok Build agent",

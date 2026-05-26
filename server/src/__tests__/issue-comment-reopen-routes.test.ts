@@ -472,6 +472,35 @@ describe.sequential("issue comment reopen routes", () => {
     );
   });
 
+  it("does not queue an assignee comment wake when a PATCH comment closes the issue", async () => {
+    mockIssueService.getById.mockResolvedValue(makeIssue("in_progress"));
+    mockIssueService.update.mockImplementation(async (_id: string, patch: Record<string, unknown>) => ({
+      ...makeIssue("in_progress"),
+      ...patch,
+    }));
+
+    const res = await request(await installActor(createApp()))
+      .patch("/api/issues/11111111-1111-4111-8111-111111111111")
+      .send({ status: "done", comment: "Done with verification" });
+
+    expect(res.status).toBe(200);
+    expect(mockIssueService.update).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      expect.objectContaining({
+        status: "done",
+        actorAgentId: null,
+        actorUserId: "local-board",
+      }),
+    );
+    expect(mockIssueService.addComment).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "Done with verification",
+      { agentId: undefined, userId: "local-board", runId: null },
+    );
+    await waitForWakeup(() => expect(mockIssueService.findMentionedAgents).toHaveBeenCalled());
+    expect(mockHeartbeatService.wakeup).not.toHaveBeenCalled();
+  });
+
   it("implicitly reopens closed issues via POST comments when an agent is assigned", async () => {
     mockIssueService.getById.mockResolvedValue(makeIssue("done"));
     mockIssueService.update.mockImplementation(async (_id: string, patch: Record<string, unknown>) => ({

@@ -5,6 +5,7 @@ import { codexLocalUIAdapter } from "./codex-local";
 import { cursorCloudUIAdapter } from "./cursor-cloud";
 import { cursorLocalUIAdapter } from "./cursor";
 import { geminiLocalUIAdapter } from "./gemini-local";
+import { autohandLocalUIAdapter } from "./autohand-local";
 import { grokLocalUIAdapter } from "./grok-local";
 import { openCodeLocalUIAdapter } from "./opencode-local";
 import { piLocalUIAdapter } from "./pi-local";
@@ -57,6 +58,7 @@ function registerBuiltInUIAdapters() {
     codexLocalUIAdapter,
     cursorCloudUIAdapter,
     geminiLocalUIAdapter,
+    autohandLocalUIAdapter,
     grokLocalUIAdapter,
     hermesLocalUIAdapter,
     openCodeLocalUIAdapter,

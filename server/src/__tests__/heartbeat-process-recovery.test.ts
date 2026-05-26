@@ -1268,6 +1268,44 @@ describeEmbeddedPostgres("heartbeat orphaned process recovery", () => {
     expect(comments).toHaveLength(0);
   });
 
+  it("lets a successful adapter completion override stale process-lost run state", async () => {
+    const { runId } = await seedQueuedIssueRunFixture();
+    mockAdapterExecute.mockImplementationOnce(async (ctx: { runId: string }) => {
+      await db
+        .update(heartbeatRuns)
+        .set({
+          status: "failed",
+          error: "Process lost -- server may have restarted",
+          errorCode: "process_lost",
+          finishedAt: new Date("2026-03-19T00:02:00.000Z"),
+          updatedAt: new Date("2026-03-19T00:02:00.000Z"),
+        })
+        .where(eq(heartbeatRuns.id, ctx.runId));
+      return {
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        errorMessage: null,
+        summary: "Completed after stale recovery marker.",
+        provider: "test",
+        model: "test-model",
+      };
+    });
+    const heartbeat = heartbeatService(db);
+
+    await heartbeat.resumeQueuedRuns();
+    const run = await waitForRunToSettle(heartbeat, runId, 5_000);
+
+    expect(run?.status).toBe("succeeded");
+    expect(run?.error).toBeNull();
+    expect(run?.errorCode).toBeNull();
+    expect(run?.exitCode).toBe(0);
+    expect(run?.resultJson).toMatchObject({
+      stopReason: "completed",
+      summary: "Completed after stale recovery marker.",
+    });
+  });
+
   it("queues one finish-handoff wake when a successful run leaves in-progress work without a next action", async () => {
     const { companyId, agentId, runId, issueId } = await seedQueuedIssueRunFixture();
     mockAdapterExecute.mockImplementationOnce(async (ctx: { runId: string }) => {
