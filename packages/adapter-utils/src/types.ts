@@ -483,6 +483,10 @@ export interface CreateConfigValues {
   search: boolean;
   fastMode: boolean;
   dangerouslyBypassSandbox: boolean;
+  thinking?: boolean;
+  restricted?: boolean;
+  dryRun?: boolean;
+  yes?: boolean;
   command: string;
   args: string;
   extraArgs: string;

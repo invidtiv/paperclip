@@ -231,6 +231,7 @@ describe("server adapter registry", () => {
       }),
     ]);
     await expect(listAdapterModelProfiles("pi_local")).resolves.toEqual([]);
+    await expect(listAdapterModelProfiles("kimi_local")).resolves.toEqual([]);
   });
 
   it("wraps built-in npm runtime installs with the sandbox-aware install helper", () => {
@@ -253,6 +254,11 @@ describe("server adapter registry", () => {
       command: "gemini",
       detectCommand: "gemini",
       installCommand: expectedGeminiInstall,
+    });
+    expect(findActiveServerAdapter("kimi_local")?.getRuntimeCommandSpec?.({})).toEqual({
+      command: "kimi",
+      detectCommand: "kimi",
+      installCommand: null,
     });
     expect(findActiveServerAdapter("opencode_local")?.getRuntimeCommandSpec?.({})).toEqual({
       command: "opencode",
