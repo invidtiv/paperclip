@@ -500,7 +500,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
       payload: withRecoveryModelProfileHint({
         issueId: input.issueId,
         ...(input.retryOfRunId ? { retryOfRunId: input.retryOfRunId } : {}),
-      }),
+      }, "normal_model"),
       requestedByActorType: "system",
       requestedByActorId: null,
       contextSnapshot: withRecoveryModelProfileHint({
@@ -510,7 +510,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         retryReason: input.retryReason,
         source: input.source,
         ...(input.retryOfRunId ? { retryOfRunId: input.retryOfRunId } : {}),
-      }),
+      }, "normal_model"),
     });
 
     if (queued && input.retryOfRunId) {
@@ -536,7 +536,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
       payload: withRecoveryModelProfileHint({
         issueId: issue.id,
         mutation: "assigned_todo_liveness_dispatch",
-      }),
+      }, "normal_model"),
       requestedByActorType: "system",
       requestedByActorId: null,
       contextSnapshot: withRecoveryModelProfileHint({
@@ -544,7 +544,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         taskId: issue.id,
         wakeReason: "issue_assigned",
         source: "issue.assigned_todo_liveness_dispatch",
-      }),
+      }, "normal_model"),
     });
   }
 
@@ -651,7 +651,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         payload: withRecoveryModelProfileHint({
           issueId: candidate.id,
           mutation: "unassigned_blocker_recovery",
-        }),
+        }, "normal_model"),
         requestedByActorType: "system",
         requestedByActorId: null,
         contextSnapshot: withRecoveryModelProfileHint({
@@ -659,7 +659,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
           taskId: candidate.id,
           wakeReason: "issue_assigned",
           source: "issue.unassigned_blocker_recovery",
-        }),
+        }, "normal_model"),
       });
 
       if (queued) {
@@ -1456,7 +1456,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         goalId: sourceIssue?.goalId ?? null,
         billingCode: sourceIssue?.billingCode ?? null,
         assigneeAgentId: ownerAgentId,
-        assigneeAdapterOverrides: recoveryAssigneeAdapterOverrides(),
+        assigneeAdapterOverrides: recoveryAssigneeAdapterOverrides("status_only"),
         originKind: STALE_ACTIVE_RUN_EVALUATION_ORIGIN_KIND,
         originId: input.run.id,
         originRunId: input.run.id,
@@ -1502,7 +1502,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
           issueId: evaluation.id,
           staleRunId: input.run.id,
           sourceIssueId: sourceIssue?.id ?? null,
-        }),
+        }, "status_only"),
         requestedByActorType: "system",
         requestedByActorId: null,
         contextSnapshot: withRecoveryModelProfileHint({
@@ -1512,7 +1512,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
           source: STALE_ACTIVE_RUN_EVALUATION_ORIGIN_KIND,
           staleRunId: input.run.id,
           sourceIssueId: sourceIssue?.id ?? null,
-        }),
+        }, "status_only"),
       });
     }
     return { kind: "created" as const, evaluationIssueId: evaluation.id };
@@ -1891,7 +1891,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         projectId: input.issue.projectId,
         goalId: input.issue.goalId,
         assigneeAgentId: ownerAgentId,
-        assigneeAdapterOverrides: recoveryAssigneeAdapterOverrides(),
+        assigneeAdapterOverrides: recoveryAssigneeAdapterOverrides("status_only"),
         originKind: STRANDED_ISSUE_RECOVERY_ORIGIN_KIND,
         originId: input.issue.id,
         originRunId: input.latestRun?.id ?? null,
@@ -1921,7 +1921,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         sourceIssueId: input.issue.id,
         strandedRunId: input.latestRun?.id ?? null,
         recoveryCause,
-      }),
+      }, "status_only"),
       requestedByActorType: "system",
       requestedByActorId: null,
       contextSnapshot: withRecoveryModelProfileHint({
@@ -1932,7 +1932,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         sourceIssueId: input.issue.id,
         strandedRunId: input.latestRun?.id ?? null,
         recoveryCause,
-      }),
+      }, "status_only"),
     });
 
     return recovery;
@@ -2051,7 +2051,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         recoveryActionId: input.action.id,
         strandedRunId: input.latestRun?.id ?? null,
         recoveryCause: input.recoveryCause,
-      }),
+      }, "status_only"),
       requestedByActorType: "system",
       requestedByActorId: null,
       contextSnapshot: withRecoveryModelProfileHint({
@@ -2064,7 +2064,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         sourceIssueId: input.issue.id,
         strandedRunId: input.latestRun?.id ?? null,
         recoveryCause: input.recoveryCause,
-      }),
+      }, "status_only"),
     });
   }
 
@@ -2971,6 +2971,28 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
     return result;
   }
 
+  async function retireDoneLivenessRecoveryBlockers() {
+    const closedRecoveries = await db
+      .select()
+      .from(issues)
+      .where(
+        and(
+          eq(issues.originKind, RECOVERY_ORIGIN_KINDS.issueGraphLivenessEscalation),
+          isNull(issues.hiddenAt),
+          inArray(issues.status, ["done", "cancelled"]),
+        ),
+      );
+
+    let blockerRelationsRemoved = 0;
+    for (const recovery of closedRecoveries) {
+      if (await removeRecoveryBlockerFromSource(recovery)) {
+        blockerRelationsRemoved += 1;
+      }
+    }
+
+    return { blockerRelationsRemoved };
+  }
+
   function normalizeIssueGraphLivenessAutoRecoveryLookbackHours(raw: unknown) {
     const numeric = Math.floor(asNumber(raw, DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS));
     return Math.min(
@@ -3235,7 +3257,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         projectId: recoveryIssue.projectId,
         goalId: recoveryIssue.goalId,
         assigneeAgentId: ownerSelection.agentId,
-        assigneeAdapterOverrides: recoveryAssigneeAdapterOverrides(),
+        assigneeAdapterOverrides: recoveryAssigneeAdapterOverrides("status_only"),
         originKind: RECOVERY_ORIGIN_KINDS.issueGraphLivenessEscalation,
         originId: input.finding.incidentKey,
         originFingerprint: livenessRecoveryLeafFingerprint(input.finding),
@@ -3321,7 +3343,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         sourceIssueId: issue.id,
         recoveryIssueId: recoveryIssue.id,
         incidentKey: input.finding.incidentKey,
-      }),
+      }, "status_only"),
       requestedByActorType: "system",
       requestedByActorId: null,
       contextSnapshot: withRecoveryModelProfileHint({
@@ -3332,7 +3354,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
         sourceIssueId: issue.id,
         recoveryIssueId: recoveryIssue.id,
         incidentKey: input.finding.incidentKey,
-      }),
+      }, "status_only"),
     });
 
     logger.warn({
@@ -3366,6 +3388,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
     const now = new Date();
     const cutoff = new Date(now.getTime() - lookbackHours * 60 * 60 * 1000);
     const obsoleteRecoveryCleanup = await retireObsoleteLivenessRecoveryIssues(findings);
+    const doneRecoveryBlockerCleanup = await retireDoneLivenessRecoveryBlockers();
     const updatedAtByIssueKey = await loadLivenessDependencyUpdatedAtByIssue(findings);
     const result = {
       findings: findings.length,
@@ -3380,6 +3403,7 @@ export function recoveryService(db: Db, deps: { enqueueWakeup: RecoveryWakeup })
       obsoleteRecoveriesRetired: obsoleteRecoveryCleanup.retired,
       obsoleteRecoveriesActiveSkipped: obsoleteRecoveryCleanup.activeSkipped,
       obsoleteRecoveryBlockerRelationsRemoved: obsoleteRecoveryCleanup.blockerRelationsRemoved,
+      doneRecoveryBlockerRelationsRemoved: doneRecoveryBlockerCleanup.blockerRelationsRemoved,
       issueIds: [] as string[],
       escalationIssueIds: [] as string[],
       retiredRecoveryIssueIds: obsoleteRecoveryCleanup.retiredIssueIds,
