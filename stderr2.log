@@ -1,0 +1,32 @@
+[RPC DEBUG] writeNotification method=autohand.agentStart size=249b
+[RPC DEBUG] stdin read line size=94b
+[RPC DEBUG] handleLine received: {"jsonrpc":"2.0","id":1,"method":"autohand.prompt","params":{"message":"Respond with hello."}}
+[RPC DEBUG] writeNotification method=autohand.turnStart size=130b
+[RPC] handlePrompt: images=0, hasImageManager=true, model=nvidia/nemotron-3-super-120b-a12b:free
+[RPC DEBUG] writeNotification method=autohand.messageStart size=154b
+[RPC DEBUG] Executing instruction: Respond with hello.
+[RPC DEBUG] previewModeEnabled=true, hasFileManager=true
+[RPC DEBUG] Entering preview mode with batchId=changes_4_1779780882868
+[RPC DEBUG] emitChangesBatchStart: batchId=changes_4_1779780882868
+[RPC DEBUG] writeNotification method=autohand.changesBatchStart size=174b
+[RPC DEBUG] handleAgentOutput: type=thinking, content length=0
+[RPC DEBUG] Emitting thinking: The user asks to respond with hello. This is a sim...
+[RPC DEBUG] writeNotification method=autohand.messageUpdate size=286b
+[RPC DEBUG] handleAgentOutput: type=message, content length=5
+[RPC DEBUG] Emitting message content: hello...
+[RPC DEBUG] writeNotification method=autohand.messageUpdate size=152b
+[RPC DEBUG] Turn finished, pendingChanges=0, files=
+[RPC DEBUG] emitChangesBatchEnd: batchId=changes_4_1779780882868, changeCount=0
+[RPC DEBUG] writeNotification method=autohand.changesBatchEnd size=156b
+[RPC DEBUG] Instruction completed, success=true, content length=5
+[RPC DEBUG] Hook execution: hookManager=true
+[RPC DEBUG] Executing stop hooks...
+[RPC DEBUG] Stop hooks completed
+[RPC DEBUG] writeNotification method=autohand.hook.stop size=182b
+[RPC DEBUG] HOOK_STOP emitted
+[RPC DEBUG] Emitting MESSAGE_END, messageId=msg_3_1779780882868
+[RPC DEBUG] writeNotification method=autohand.messageEnd size=151b
+[RPC DEBUG] MESSAGE_END emitted successfully
+[RPC DEBUG] Emitting TURN_END, turnId=turn_2_1779780882867
+[RPC DEBUG] writeNotification method=autohand.turnEnd size=215b
+[RPC DEBUG] TURN_END emitted successfully

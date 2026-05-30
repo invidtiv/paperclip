@@ -1,0 +1,12 @@
+{"jsonrpc":"2.0","method":"autohand.agentStart","params":{"sessionId":"session_1_1779780877937","model":"nvidia/nemotron-3-super-120b-a12b:free","workspace":"/home/bsdev/github/paperclip","timestamp":"2026-05-26T07:34:37.937Z","contextPercent":96}}
+{"jsonrpc":"2.0","method":"autohand.turnStart","params":{"turnId":"turn_2_1779780882867","timestamp":"2026-05-26T07:34:42.867Z"}}
+{"jsonrpc":"2.0","method":"autohand.messageStart","params":{"messageId":"msg_3_1779780882868","role":"assistant","timestamp":"2026-05-26T07:34:42.868Z"}}
+{"jsonrpc":"2.0","method":"autohand.changesBatchStart","params":{"batchId":"changes_4_1779780882868","turnId":"turn_2_1779780882867","timestamp":"2026-05-26T07:34:42.868Z"}}
+{"jsonrpc":"2.0","method":"autohand.ping","params":{"timestamp":"2026-05-26T07:34:57.868Z","status":"processing","turnId":"turn_2_1779780882867"}}
+{"jsonrpc":"2.0","method":"autohand.messageUpdate","params":{"messageId":"msg_3_1779780882868","delta":"","thought":"The user asks to respond with hello. This is a simple text response that does not require any browser interaction or tool use.","timestamp":"2026-05-26T07:35:08.567Z"}}
+{"jsonrpc":"2.0","method":"autohand.messageUpdate","params":{"messageId":"msg_3_1779780882868","delta":"hello","timestamp":"2026-05-26T07:35:08.567Z"}}
+{"jsonrpc":"2.0","method":"autohand.changesBatchEnd","params":{"batchId":"changes_4_1779780882868","changeCount":0,"timestamp":"2026-05-26T07:35:08.569Z"}}
+{"jsonrpc":"2.0","method":"autohand.hook.stop","params":{"tokensUsed":14612,"tokensUsageStatus":"actual","toolCallsCount":0,"duration":25702,"timestamp":"2026-05-26T07:35:08.569Z"}}
+{"jsonrpc":"2.0","method":"autohand.messageEnd","params":{"messageId":"msg_3_1779780882868","content":"hello","timestamp":"2026-05-26T07:35:08.569Z"}}
+{"jsonrpc":"2.0","method":"autohand.turnEnd","params":{"turnId":"turn_2_1779780882867","timestamp":"2026-05-26T07:35:08.569Z","contextPercent":90,"tokensUsed":14612,"tokensUsageStatus":"actual","durationMs":25702}}
+{"jsonrpc":"2.0","result":{"success":true},"id":1}

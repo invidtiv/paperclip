@@ -1,0 +1,9 @@
+{"jsonrpc":"2.0","method":"autohand.agentStart","params":{"sessionId":"session_1_1779780826707","model":"nvidia/nemotron-3-super-120b-a12b:free","workspace":"/home/bsdev/github/paperclip","timestamp":"2026-05-26T07:33:46.707Z","contextPercent":96}}
+{"jsonrpc":"2.0","method":"autohand.turnStart","params":{"turnId":"turn_2_1779780831271","timestamp":"2026-05-26T07:33:51.271Z"}}
+{"jsonrpc":"2.0","method":"autohand.messageStart","params":{"messageId":"msg_3_1779780831271","role":"assistant","timestamp":"2026-05-26T07:33:51.271Z"}}
+{"jsonrpc":"2.0","method":"autohand.changesBatchStart","params":{"batchId":"changes_4_1779780831272","turnId":"turn_2_1779780831271","timestamp":"2026-05-26T07:33:51.272Z"}}
+{"jsonrpc":"2.0","method":"autohand.changesBatchEnd","params":{"batchId":"changes_4_1779780831272","changeCount":0,"timestamp":"2026-05-26T07:34:03.810Z"}}
+{"jsonrpc":"2.0","method":"autohand.hook.stop","params":{"tokensUsed":0,"tokensUsageStatus":"unavailable","toolCallsCount":0,"duration":12539,"timestamp":"2026-05-26T07:34:03.810Z"}}
+{"jsonrpc":"2.0","method":"autohand.messageEnd","params":{"messageId":"msg_3_1779780831271","content":"","timestamp":"2026-05-26T07:34:03.810Z"}}
+{"jsonrpc":"2.0","method":"autohand.turnEnd","params":{"turnId":"turn_2_1779780831271","timestamp":"2026-05-26T07:34:03.810Z","contextPercent":90,"tokensUsed":0,"tokensUsageStatus":"unavailable","durationMs":12539}}
+{"jsonrpc":"2.0","result":{"success":false},"id":1}
