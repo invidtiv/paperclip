@@ -93,6 +93,57 @@ function resolveCodexBiller(env: Record<string, string>, billingType: "api" | "s
   return billingType === "subscription" ? "chatgpt" : openAiCompatibleBiller ?? "openai";
 }
 
+function shouldSimulateCodexApiCost(config: Record<string, unknown>): boolean {
+  const value = config.simulateApiCost;
+  return value === true;
+}
+
+function readNumberFromConfig(config: Record<string, unknown>, key: string, fallback: number): number {
+  const value = asNumber(config[key], Number.NaN);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function readCodexEstimatedRates(config: Record<string, unknown>): {
+  inputPerMillionUsd: number;
+  cachedInputPerMillionUsd: number;
+  outputPerMillionUsd: number;
+} {
+  return {
+    inputPerMillionUsd: readNumberFromConfig(config, "simulatedApiInputPerMillionUsd", 1.25),
+    cachedInputPerMillionUsd: readNumberFromConfig(config, "simulatedApiCachedInputPerMillionUsd", 0.125),
+    outputPerMillionUsd: readNumberFromConfig(config, "simulatedApiOutputPerMillionUsd", 10),
+  };
+}
+
+export function estimateCodexApiCostUsd(
+  usage: { inputTokens: number; cachedInputTokens: number; outputTokens: number },
+  rates: { inputPerMillionUsd: number; cachedInputPerMillionUsd: number; outputPerMillionUsd: number },
+): number {
+  const totalUsd =
+    (usage.inputTokens / 1_000_000) * rates.inputPerMillionUsd +
+    (usage.cachedInputTokens / 1_000_000) * rates.cachedInputPerMillionUsd +
+    (usage.outputTokens / 1_000_000) * rates.outputPerMillionUsd;
+  return Number(totalUsd.toFixed(8));
+}
+
+function resolveCodexCostUsd(input: {
+  parsedCostUsd: number | null | undefined;
+  billingType: "api" | "subscription";
+  usage: { inputTokens: number; cachedInputTokens: number; outputTokens: number };
+  config: Record<string, unknown>;
+}): number | null {
+  if (typeof input.parsedCostUsd === "number" && Number.isFinite(input.parsedCostUsd)) {
+    return input.parsedCostUsd;
+  }
+  if (input.billingType !== "subscription") {
+    return null;
+  }
+  if (!shouldSimulateCodexApiCost(input.config)) {
+    return null;
+  }
+  return estimateCodexApiCostUsd(input.usage, readCodexEstimatedRates(input.config));
+}
+
 async function isLikelyPaperclipRepoRoot(candidate: string): Promise<boolean> {
   const [hasWorkspace, hasPackageJson, hasServerDir, hasAdapterUtilsDir] = await Promise.all([
     pathExists(path.join(candidate, "pnpm-workspace.yaml")),
@@ -789,6 +840,12 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         stderr: attempt.proc.stderr,
         errorMessage: fallbackErrorMessage,
       });
+    const effectiveCostUsd = resolveCodexCostUsd({
+      parsedCostUsd: attempt.parsed.costUsd,
+      billingType,
+      usage: attempt.parsed.usage,
+      config,
+    });
 
     return {
       exitCode: attempt.proc.exitCode,
@@ -812,10 +869,13 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       biller: resolveCodexBiller(effectiveEnv, billingType),
       model,
       billingType,
-      costUsd: null,
+      costUsd: effectiveCostUsd,
       resultJson: {
         stdout: attempt.proc.stdout,
         stderr: attempt.proc.stderr,
+        ...(effectiveCostUsd != null && billingType === "subscription"
+          ? { simulatedApiCostUsd: effectiveCostUsd }
+          : {}),
         ...(transientUpstream ? { errorFamily: "transient_upstream" } : {}),
         ...(transientRetryNotBefore ? { retryNotBefore: transientRetryNotBefore.toISOString() } : {}),
         ...(transientRetryNotBefore ? { transientRetryNotBefore: transientRetryNotBefore.toISOString() } : {}),

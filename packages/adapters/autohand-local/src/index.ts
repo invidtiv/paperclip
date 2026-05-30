@@ -8,10 +8,10 @@ export const label = "Autohand CLI (local)";
 
 export const SANDBOX_INSTALL_COMMAND = buildSandboxNpmInstallCommand("autohand-cli");
 
-export const DEFAULT_AUTOHAND_LOCAL_MODEL = "auto";
+export const DEFAULT_AUTOHAND_LOCAL_MODEL = "deepseek/deepseek-v4-flash:free";
 
 export const models = [
-  { id: DEFAULT_AUTOHAND_LOCAL_MODEL, label: "Auto (Autohand config default)" },
+  { id: DEFAULT_AUTOHAND_LOCAL_MODEL, label: "DeepSeek V4 Flash (Free)" },
   { id: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
   { id: "gpt-4o", label: "GPT-4o" },
   { id: "llama-3.1-70b", label: "Llama 3.1 70b" },
@@ -35,8 +35,8 @@ Adapter: autohand_local
 
 Use when:
 - You want Paperclip to run the Autohand CLI (\`autohand\`) locally on the host machine.
-- You want session persistence/resumption across runs (Autohand supports resuming sessions with \`--session <id>\`).
 - You need Paperclip skills injected locally without polluting the global environment.
+- You are comfortable with fresh-session heartbeats in RPC mode.
 
 Don't use when:
 - You need webhook-style external invocation (use http or openclaw_gateway).
@@ -54,6 +54,7 @@ Core fields:
 - yes (boolean, optional): bypass confirmation prompts (\`--yes\`, default: true).
 - command (string, optional): defaults to "autohand".
 - extraArgs (string[], optional): additional CLI args.
+- additionalDirectories / allowedDirectories / addDirs (string[] or comma/newline string, optional): extra local directories passed to Autohand with \`--add-dir\`; use this for source trees or local context outside the execution workspace.
 - env (object, optional): KEY=VALUE environment variables.
 
 Operational fields:
@@ -61,8 +62,10 @@ Operational fields:
 - graceSec (number, optional): SIGTERM grace period in seconds.
 
 Notes:
-- Prompts are passed to Autohand CLI via the \`--prompt\` (\`-p\`) flag.
-- Autohand CLI streams output in line-delimited JSON using \`--output-format stream-json\`.
-- Paperclip auto-injects local skills into \`~/.autohand/skills/\` via symlinks so the CLI can naturally discover both configuration/credentials and skills in their natural location.
-- Authentication can use AUTOHAND_API_KEY / OpenRouter/Ollama keys or local login.
+- Runs use the Agent Communication Protocol (ACP) over stdin/stdout with \`autohand --acp\` using ndJSON.
+- ACP mode natively supports stateful session management, allowing Paperclip to resume existing sessions (\`sess_...\`) cleanly across heartbeats with full conversation context and token efficiency.
+- Supports configurable permission modes (\`unrestricted\`, \`restricted\`, \`dry-run\`, \`full-access\`).
+- Paperclip automatically injects local skills so they are naturally discoverable by Autohand.
+- Authentication utilizes the \`authenticate\` handshake step using environment API keys.
 `;
+

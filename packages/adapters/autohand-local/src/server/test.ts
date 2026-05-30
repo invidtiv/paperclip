@@ -164,24 +164,47 @@ export async function testEnvironment(
         return asStringArray(config.args);
       })();
 
-      const args = ["--output-format", "stream-json", "--prompt", "Respond with hello.", "--yes"];
+      const args = ["--mode", "rpc", "--yes"];
       if (model && model !== DEFAULT_AUTOHAND_LOCAL_MODEL) args.push("--model", model);
       if (extraArgs.length > 0) args.push(...extraArgs);
+
+      const promptJson = JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "autohand.prompt",
+        params: {
+          message: "Respond with hello.",
+        },
+      });
+
+      const shellCommand = "bash";
+      const shellArgs = [
+        "-c",
+        `(echo ${JSON.stringify(promptJson)}; sleep 60) | ${JSON.stringify(command)} ${args.map((a) => JSON.stringify(a)).join(" ")}`,
+      ];
 
       const probe = await runAdapterExecutionTargetProcess(
         runId,
         target,
-        command,
-        args,
+        shellCommand,
+        shellArgs,
         {
           cwd,
           env,
           timeoutSec: helloProbeTimeoutSec,
           graceSec: 5,
           onLog: async () => { },
+          terminalResultCleanup: {
+            graceMs: 1000,
+            hasTerminalResult: ({ stdout }) => {
+              return stdout.includes('"result":{"success":') || stdout.includes('"method":"autohand.turnEnd"');
+            },
+          },
         },
       );
 
+      console.log("PROBE STDOUT:", probe.stdout);
+      console.log("PROBE STDERR:", probe.stderr);
       const parsed = parseAutohandJsonl(probe.stdout);
       const detail = summarizeProbeDetail(probe.stdout, probe.stderr, parsed.errorMessage);
 
@@ -192,7 +215,7 @@ export async function testEnvironment(
           message: "Autohand hello probe timed out.",
           hint: "Verify if `autohand` can run and respond manually from this directory.",
         });
-      } else if ((probe.exitCode ?? 1) === 0) {
+      } else if ((probe.exitCode ?? 0) === 0) {
         const summary = parsed.summary.trim();
         const hasHello = /\bhello\b/i.test(summary);
         checks.push({
@@ -209,7 +232,7 @@ export async function testEnvironment(
           level: "error",
           message: "Autohand hello probe failed.",
           ...(detail ? { detail } : {}),
-          hint: "Run `autohand --output-format json -p \"Respond with hello.\"` manually in this directory to debug.",
+          hint: "Run `autohand --mode rpc` manually in this directory and send JSON-RPC prompt request on stdin to debug.",
         });
       }
     }

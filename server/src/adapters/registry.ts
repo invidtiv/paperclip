@@ -83,6 +83,8 @@ import {
 import {
   execute as autohandExecute,
   listAutohandSkills,
+  listAutohandModels,
+  refreshAutohandModels,
   syncAutohandSkills,
   testEnvironment as autohandTestEnvironment,
   sessionCodec as autohandSessionCodec,
@@ -396,6 +398,8 @@ const autohandLocalAdapter: ServerAdapterModule = {
   sessionCodec: autohandSessionCodec,
   sessionManagement: getAdapterSessionManagement("autohand_local") ?? undefined,
   models: autohandModels,
+  listModels: listAutohandModels,
+  refreshModels: refreshAutohandModels,
   modelProfiles: autohandModelProfiles,
   supportsLocalAgentJwt: true,
   supportsInstructionsBundle: true,

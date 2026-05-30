@@ -1,8 +1,16 @@
-import { asString, parseJson, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { asNumber, asString, parseJson, parseObject } from "@paperclipai/adapter-utils/server-utils";
+
+type UsageSummary = {
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+};
 
 export interface ParsedKimiJsonl {
   summary: string;
   thought: string;
+  usage: UsageSummary;
+  costUsd: number | null;
   errorMessage: string | null;
   assistantMessageCount: number;
   toolCallCount: number;
@@ -75,10 +83,70 @@ function looksLikeErrorLine(line: string): boolean {
   return KIMI_ERROR_RE.test(line);
 }
 
+function readUsageFromRecord(record: Record<string, unknown>): UsageSummary {
+  const usage = parseObject(record.usage);
+  const usageMeta = parseObject(record.usage_metadata);
+  const tokenUsage = parseObject(record.token_usage);
+
+  const inputTokens = asNumber(
+    usage.input_tokens,
+    asNumber(usage.inputTokens, asNumber(usage.prompt_tokens, asNumber(tokenUsage.input_tokens, asNumber(usageMeta.input_tokens, 0)))),
+  );
+  const outputTokens = asNumber(
+    usage.output_tokens,
+    asNumber(usage.outputTokens, asNumber(usage.completion_tokens, asNumber(tokenUsage.output_tokens, asNumber(usageMeta.output_tokens, 0)))),
+  );
+  const cachedInputTokens = asNumber(
+    usage.cached_input_tokens,
+    asNumber(usage.cachedInputTokens, asNumber(usage.cache_read_input_tokens, asNumber(tokenUsage.cached_input_tokens, asNumber(usageMeta.cached_input_tokens, 0)))),
+  );
+
+  return {
+    inputTokens,
+    outputTokens,
+    cachedInputTokens,
+  };
+}
+
+function mergeUsage(previous: UsageSummary, next: UsageSummary): UsageSummary {
+  return {
+    inputTokens: Math.max(previous.inputTokens, next.inputTokens),
+    outputTokens: Math.max(previous.outputTokens, next.outputTokens),
+    cachedInputTokens: Math.max(previous.cachedInputTokens, next.cachedInputTokens),
+  };
+}
+
+function readCostUsd(record: Record<string, unknown>): number | null {
+  const usage = parseObject(record.usage);
+  const usageMeta = parseObject(record.usage_metadata);
+  const tokenUsage = parseObject(record.token_usage);
+
+  const parsed = asNumber(
+    record.total_cost_usd,
+    asNumber(
+      record.cost_usd,
+      asNumber(
+        record.costUsd,
+        asNumber(
+          usage.total_cost_usd,
+          asNumber(usage.cost_usd, asNumber(usage.costUsd, asNumber(tokenUsage.total_cost_usd, asNumber(usageMeta.total_cost_usd, Number.NaN)))),
+        ),
+      ),
+    ),
+  );
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function parseKimiJsonl(stdout: string): ParsedKimiJsonl {
   const summaryParts: string[] = [];
   const thoughtParts: string[] = [];
   const nonJsonLines: string[] = [];
+  let usage: UsageSummary = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedInputTokens: 0,
+  };
+  let costUsd: number | null = null;
   let errorMessage: string | null = null;
   let assistantMessageCount = 0;
   let toolCallCount = 0;
@@ -97,6 +165,11 @@ export function parseKimiJsonl(stdout: string): ParsedKimiJsonl {
 
     const role = asString(parsed.role, "").trim();
     const type = asString(parsed.type, "").trim();
+    usage = mergeUsage(usage, readUsageFromRecord(parsed));
+    const lineCostUsd = readCostUsd(parsed);
+    if (lineCostUsd != null) {
+      costUsd = lineCostUsd;
+    }
 
     if (role === "assistant") {
       assistantMessageCount += 1;
@@ -127,6 +200,8 @@ export function parseKimiJsonl(stdout: string): ParsedKimiJsonl {
   return {
     summary: summaryParts.join("\n\n").trim(),
     thought: thoughtParts.join("\n\n").trim(),
+    usage,
+    costUsd,
     errorMessage,
     assistantMessageCount,
     toolCallCount,

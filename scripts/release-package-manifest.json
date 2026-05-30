@@ -40,6 +40,11 @@
     "publishFromCi": true
   },
   {
+    "dir": "packages/adapters/autohand-local",
+    "name": "@paperclipai/adapter-autohand-local",
+    "publishFromCi": true
+  },
+  {
     "dir": "packages/adapters/kimi-local",
     "name": "@paperclipai/adapter-kimi-local",
     "publishFromCi": true

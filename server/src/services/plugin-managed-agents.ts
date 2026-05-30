@@ -19,7 +19,7 @@ import { logActivity } from "./activity-log.js";
 import { agentInstructionsService } from "./agent-instructions.js";
 
 const MANAGED_AGENT_ENTITY_TYPE = "managed_agent";
-const DEFAULT_MANAGED_AGENT_ADAPTER_TYPE = "process";
+const DEFAULT_MANAGED_AGENT_ADAPTER_TYPE = "autohand_local";
 
 interface PluginManagedAgentServiceOptions {
   pluginId: string;

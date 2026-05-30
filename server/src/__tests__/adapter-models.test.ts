@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { models as codexFallbackModels } from "@paperclipai/adapter-codex-local";
 import { models as cursorFallbackModels } from "@paperclipai/adapter-cursor-local";
 import { models as opencodeFallbackModels } from "@paperclipai/adapter-opencode-local";
 import { resetOpenCodeModelsCacheForTests } from "@paperclipai/adapter-opencode-local/server";
+import { models as autohandFallbackModels } from "@paperclipai/adapter-autohand-local";
+import { resetAutohandModelsCacheForTests } from "@paperclipai/adapter-autohand-local/server";
 import { listAdapterModels, listServerAdapters, refreshAdapterModels } from "../adapters/index.js";
 import { resetCodexModelsCacheForTests } from "../adapters/codex-models.js";
 import { resetCursorModelsCacheForTests, setCursorModelsRunnerForTests } from "../adapters/cursor-models.js";
@@ -18,10 +23,14 @@ describe("adapter model listing", () => {
   beforeEach(() => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.PAPERCLIP_OPENCODE_COMMAND;
+    delete process.env.PAPERCLIP_AUTOHAND_CONFIG_PATH;
+    delete process.env.AUTOHAND_CONFIG_PATH;
+    delete process.env.OPENROUTER_API_KEY;
     resetCodexModelsCacheForTests();
     resetCursorModelsCacheForTests();
     setCursorModelsRunnerForTests(null);
     resetOpenCodeModelsCacheForTests();
+    resetAutohandModelsCacheForTests();
     vi.restoreAllMocks();
   });
 
@@ -121,6 +130,57 @@ describe("adapter model listing", () => {
     const models = await listAdapterModels("opencode_local");
 
     expect(models).toEqual(opencodeFallbackModels);
+  });
+
+  it("returns autohand fallback models when provider discovery is not configured", async () => {
+    process.env.PAPERCLIP_AUTOHAND_CONFIG_PATH = path.join(os.tmpdir(), "paperclip-missing-autohand-config.json");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    const models = await listAdapterModels("autohand_local");
+
+    expect(models).toEqual(autohandFallbackModels);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("loads autohand OpenRouter models from the local Autohand config", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-autohand-models-"));
+    const configPath = path.join(dir, "config.json");
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({
+        provider: "openrouter",
+        openrouter: {
+          apiKey: "sk-test",
+          model: "anthropic/claude-sonnet-4.5",
+          baseUrl: "https://openrouter.ai/api/v1",
+        },
+      }),
+    );
+    process.env.PAPERCLIP_AUTOHAND_CONFIG_PATH = configPath;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: "openai/gpt-5.4", name: "GPT-5.4" },
+          { id: "anthropic/claude-sonnet-4.5" },
+        ],
+      }),
+    } as Response);
+
+    const first = await listAdapterModels("autohand_local");
+    const second = await listAdapterModels("autohand_local");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://openrouter.ai/api/v1/models",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer sk-test" },
+      }),
+    );
+    expect(second).toEqual(first);
+    expect(first.some((model) => model.id === "auto")).toBe(true);
+    expect(first.some((model) => model.id === "anthropic/claude-sonnet-4.5")).toBe(true);
+    expect(first.some((model) => model.id === "openai/gpt-5.4")).toBe(true);
   });
 
   it("loads cursor models dynamically and caches them", async () => {

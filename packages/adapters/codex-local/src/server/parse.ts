@@ -15,6 +15,7 @@ export function parseCodexJsonl(stdout: string) {
   let sessionId: string | null = null;
   let finalMessage: string | null = null;
   let errorMessage: string | null = null;
+  let costUsd: number | null = null;
   const usage = {
     inputTokens: 0,
     cachedInputTokens: 0,
@@ -54,6 +55,10 @@ export function parseCodexJsonl(stdout: string) {
       usage.inputTokens = asNumber(usageObj.input_tokens, usage.inputTokens);
       usage.cachedInputTokens = asNumber(usageObj.cached_input_tokens, usage.cachedInputTokens);
       usage.outputTokens = asNumber(usageObj.output_tokens, usage.outputTokens);
+      const parsedCostUsd = asNumber(event.total_cost_usd, Number.NaN);
+      if (Number.isFinite(parsedCostUsd)) {
+        costUsd = parsedCostUsd;
+      }
       continue;
     }
 
@@ -68,6 +73,7 @@ export function parseCodexJsonl(stdout: string) {
     sessionId,
     summary: finalMessage?.trim() ?? "",
     usage,
+    costUsd,
     errorMessage,
   };
 }

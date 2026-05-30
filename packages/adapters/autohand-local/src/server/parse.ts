@@ -27,9 +27,17 @@ function asErrorText(value: unknown): string {
   }
 }
 
+function readCostUsd(value: Record<string, unknown>, fallback = 0): number {
+  return asNumber(
+    value.total_cost_usd,
+    asNumber(value.cost_usd, asNumber(value.costUsd, asNumber(value.cost, fallback))),
+  );
+}
+
 export function parseAutohandJsonl(stdout: string) {
   let sessionId: string | null = null;
   const messages: string[] = [];
+  let currentAssistantMessage = "";
   let errorMessage: string | null = null;
   let costUsd: number | null = null;
   let resultEvent: Record<string, unknown> | null = null;
@@ -46,8 +54,74 @@ export function parseAutohandJsonl(stdout: string) {
     const event = parseJson(line);
     if (!event) continue;
 
-    const foundSessionId = readSessionId(event);
+    const method = asString(event.method, "").trim();
+    if (method) {
+      const params = parseObject(event.params);
+      if (method === "autohand.agentStart" || method === "initialize" || method === "newSession" || method === "resumeSession") {
+        const foundSessionId = readSessionId(params) || readSessionId(event.result ? parseObject(event.result) : {});
+        if (foundSessionId) sessionId = foundSessionId;
+      }
+      if (method === "autohand.messageEnd") {
+        const content = asString(params.content, "").trim();
+        if (content) {
+          messages.push(content);
+        }
+      }
+      if (method === "autohand.turnEnd" || method === "autohand.hook.stop") {
+        const tokensUsed = asNumber(params.tokensUsed, 0);
+        if (tokensUsed > 0) {
+          usage.outputTokens = tokensUsed;
+        }
+        const cost = readCostUsd(params, 0);
+        if (cost > 0) {
+          costUsd = cost;
+        }
+        if (method === "autohand.turnEnd") {
+          resultEvent = event;
+        }
+      }
+      if (method === "autohand.error") {
+        const text = asErrorText(params.error ?? params.message ?? params.detail).trim();
+        if (text) {
+          errorMessage = text;
+        }
+      }
+      continue;
+    }
+
+    if (event.error) {
+      const errorObj = parseObject(event.error);
+      const text = asString(errorObj.message, "").trim();
+      if (text) {
+        errorMessage = text;
+      }
+      continue;
+    }
+
+    const foundSessionId = readSessionId(event) || readSessionId(event.result ? parseObject(event.result) : {});
     if (foundSessionId) sessionId = foundSessionId;
+
+    if (event.event !== undefined) {
+      const eventName = asString(event.event, "").trim();
+      const data = parseObject(event.data);
+      if (eventName === "messageDelta") {
+        currentAssistantMessage += asString(data.content, "");
+      }
+      if (eventName === "promptComplete") {
+        resultEvent = event;
+        const isError = data.success === false;
+        if (isError) {
+          errorMessage = asString(data.error ?? data.message, "Prompt execution failed");
+        }
+        const inputTokens = asNumber(data.promptTokens ?? data.inputTokens, 0);
+        const outputTokens = asNumber(data.completionTokens ?? data.outputTokens ?? data.tokensUsed, 0);
+        if (inputTokens > 0) usage.inputTokens = inputTokens;
+        if (outputTokens > 0) usage.outputTokens = outputTokens;
+        const cost = readCostUsd(data, 0);
+        if (cost > 0) costUsd = cost;
+      }
+      continue;
+    }
 
     const type = asString(event.type, "").trim();
 
@@ -74,7 +148,7 @@ export function parseAutohandJsonl(stdout: string) {
         messages.push(resultText);
       }
 
-      costUsd = asNumber(event.total_cost_usd, asNumber(event.cost_usd, asNumber(event.cost, costUsd ?? 0))) || costUsd;
+      costUsd = readCostUsd(event, costUsd ?? 0) || costUsd;
 
       const status = asString(event.subtype ?? event.status, "").toLowerCase();
       const isError =
@@ -94,6 +168,10 @@ export function parseAutohandJsonl(stdout: string) {
       if (text) errorMessage = text;
       continue;
     }
+  }
+
+  if (currentAssistantMessage) {
+    messages.push(currentAssistantMessage);
   }
 
   return {

@@ -29,6 +29,10 @@ Core fields:
 - instructionsFilePath (string, optional): absolute path to a markdown instructions file prepended to the run prompt.
 - promptTemplate (string, optional): run prompt template.
 - model (string, optional): Kimi model id. Defaults to "default", which lets Kimi use its configured default model.
+- simulateApiCost (boolean, optional): when true, subscription-auth runs estimate API-equivalent cost from token usage for ledger visibility.
+- simulatedApiInputPerMillionUsd (number, optional): override estimated input token rate per 1M tokens (default 1.25).
+- simulatedApiCachedInputPerMillionUsd (number, optional): override estimated cached-input token rate per 1M tokens (default 0.125).
+- simulatedApiOutputPerMillionUsd (number, optional): override estimated output token rate per 1M tokens (default 10).
 - command (string, optional): defaults to "kimi".
 - extraArgs (string[], optional): additional CLI args passed before \`--prompt\`.
 - env (object, optional): KEY=VALUE environment variables.

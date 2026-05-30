@@ -1,0 +1,35 @@
+{
+  "name": "@paperclipai/company-files-plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Allows viewing all documents in the company and filtering files created by agents",
+  "scripts": {
+    "build": "node ./esbuild.config.mjs",
+    "dev": "node ./esbuild.config.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js",
+    "ui": "./dist/ui/"
+  },
+  "keywords": [
+    "paperclip",
+    "plugin",
+    "ui"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "@paperclipai/plugin-sdk": "workspace:*",
+    "@types/node": "^24.6.0",
+    "@types/react": "^19.0.8",
+    "esbuild": "^0.27.3",
+    "react-dom": "^19.2.4",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

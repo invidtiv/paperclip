@@ -6,7 +6,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { pathToFileURL } from "node:url";
 import type { Request as ExpressRequest, RequestHandler } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   createDb,
   ensurePostgresDatabase,
@@ -23,6 +23,7 @@ import {
   companies,
   companyMemberships,
   instanceUserRoles,
+  agents,
 } from "@paperclipai/db";
 import detectPort from "detect-port";
 import { createApp } from "./app.js";
@@ -520,6 +521,28 @@ export async function startServer(): Promise<StartedServer> {
   if (accessBackfill.agentMembershipsInserted > 0 || accessBackfill.humanGrantsInserted > 0) {
     logger.info(accessBackfill, "Backfilled principal access compatibility records");
   }
+
+  // Migrate all existing agents to autohand_local with deepseek/deepseek-v4-flash:free model
+  try {
+    logger.info("Checking and migrating existing agents to autohand_local with deepseek/deepseek-v4-flash:free...");
+    const updatedCount = await (db as any)
+      .update(agents)
+      .set({
+        adapterType: "autohand_local",
+        adapterConfig: sql`jsonb_set(coalesce(adapter_config, '{}'::jsonb), '{model}', '"deepseek/deepseek-v4-flash:free"')`,
+        updatedAt: new Date(),
+      })
+      .returning()
+      .then((rows: any[]) => rows.length);
+    if (updatedCount > 0) {
+      logger.info({ updatedCount }, `Successfully migrated ${updatedCount} agent(s) to autohand_local`);
+    } else {
+      logger.info("No agents required migration");
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to migrate existing agents to autohand_local");
+  }
+
   if (config.deploymentMode === "authenticated") {
     const {
       createBetterAuthHandler,

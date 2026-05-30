@@ -70,6 +70,10 @@ Core fields:
 - instructionsFilePath (string, optional): absolute path to a markdown instructions file prepended to stdin prompt at runtime
 - model (string, optional): Codex model id
 - modelReasoningEffort (string, optional): reasoning effort override (minimal|low|medium|high|xhigh) passed via -c model_reasoning_effort=...
+- simulateApiCost (boolean, optional): when true, subscription-auth runs estimate API-equivalent cost from token usage for ledger visibility
+- simulatedApiInputPerMillionUsd (number, optional): override estimated input token rate per 1M tokens (default 1.25)
+- simulatedApiCachedInputPerMillionUsd (number, optional): override estimated cached-input token rate per 1M tokens (default 0.125)
+- simulatedApiOutputPerMillionUsd (number, optional): override estimated output token rate per 1M tokens (default 10)
 - promptTemplate (string, optional): run prompt template
 - search (boolean, optional): run codex with --search
 - fastMode (boolean, optional): enable Codex Fast mode; supported on GPT-5.5/GPT-5.4 and passed through for manual model IDs

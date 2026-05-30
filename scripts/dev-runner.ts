@@ -80,6 +80,25 @@ const tailscaleAuthFlagNames = new Set([
   "--authenticated-private",
 ]);
 
+function prependPathEntry(entry: string | null | undefined) {
+  if (!entry) return;
+  const currentPath = process.env.PATH ?? "";
+  const entries = currentPath.split(path.delimiter).filter(Boolean);
+  if (entries.includes(entry)) return;
+  process.env.PATH = [entry, ...entries].join(path.delimiter);
+}
+
+const repoEnvPath = path.join(repoRoot, ".env");
+if (existsSync(repoEnvPath)) {
+  process.loadEnvFile(repoEnvPath);
+}
+
+if (!process.env.PAPERCLIP_AGENT_JWT_SECRET?.trim() && process.env.BETTER_AUTH_SECRET?.trim()) {
+  process.env.PAPERCLIP_AGENT_JWT_SECRET = process.env.BETTER_AUTH_SECRET;
+}
+
+prependPathEntry(process.env.HOME ? path.join(process.env.HOME, ".local/bin") : null);
+
 let tailscaleAuth = false;
 let bindMode: BindMode | null = null;
 let bindHost: string | null = null;
@@ -167,7 +186,7 @@ if (tailscaleAuth || bindMode) {
   } else {
     env.PAPERCLIP_DEPLOYMENT_MODE = "authenticated";
     env.PAPERCLIP_DEPLOYMENT_EXPOSURE = "private";
-    env.PAPERCLIP_AUTH_BASE_URL_MODE = "auto";
+    env.PAPERCLIP_AUTH_BASE_URL_MODE ??= "auto";
     console.log(
       `[paperclip] dev mode: authenticated/private (bind=${effectiveBind}${bindHost ? `:${bindHost}` : ""})`,
     );

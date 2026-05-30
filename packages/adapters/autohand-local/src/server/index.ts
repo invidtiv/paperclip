@@ -1,4 +1,9 @@
 export { execute } from "./execute.js";
+export {
+  listAutohandModels,
+  refreshAutohandModels,
+  resetAutohandModelsCacheForTests,
+} from "./models.js";
 export { listAutohandSkills, syncAutohandSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
 export {

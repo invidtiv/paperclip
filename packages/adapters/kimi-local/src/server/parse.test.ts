@@ -37,10 +37,48 @@ describe("parseKimiJsonl", () => {
 
     expect(parsed.summary).toBe("hello\n\nDone.");
     expect(parsed.thought).toBe("Plan first.");
+    expect(parsed.usage).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedInputTokens: 0,
+    });
+    expect(parsed.costUsd).toBeNull();
     expect(parsed.assistantMessageCount).toBe(2);
     expect(parsed.toolCallCount).toBe(1);
     expect(parsed.toolResultCount).toBe(1);
     expect(parsed.errorMessage).toBeNull();
+  });
+
+  it("extracts usage and cost from stream-json aliases", () => {
+    const stdout = [
+      JSON.stringify({
+        role: "assistant",
+        content: "Done.",
+        usage: {
+          prompt_tokens: 123,
+          completion_tokens: 45,
+          cached_input_tokens: 6,
+        },
+        cost_usd: 0.00123,
+      }),
+      JSON.stringify({
+        type: "event",
+        usage_metadata: {
+          input_tokens: 120,
+          output_tokens: 44,
+          cached_input_tokens: 5,
+          total_cost_usd: 0.0009,
+        },
+      }),
+    ].join("\n");
+
+    const parsed = parseKimiJsonl(stdout);
+    expect(parsed.usage).toEqual({
+      inputTokens: 123,
+      outputTokens: 45,
+      cachedInputTokens: 6,
+    });
+    expect(parsed.costUsd).toBeCloseTo(0.0009, 8);
   });
 
   it("captures structured and plain auth errors", () => {
@@ -51,7 +89,19 @@ describe("parseKimiJsonl", () => {
     const plain = parseKimiJsonl("LLM not set; run kimi login");
 
     expect(structured.errorMessage).toBe("Authentication required");
+    expect(structured.usage).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedInputTokens: 0,
+    });
+    expect(structured.costUsd).toBeNull();
     expect(plain.errorMessage).toBe("LLM not set; run kimi login");
+    expect(plain.usage).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedInputTokens: 0,
+    });
+    expect(plain.costUsd).toBeNull();
   });
 });
 

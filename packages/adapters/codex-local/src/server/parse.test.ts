@@ -29,6 +29,7 @@ describe("parseCodexJsonl", () => {
         cachedInputTokens: 2,
         outputTokens: 4,
       },
+      costUsd: null,
       errorMessage: "resume failed",
     });
   });
@@ -62,6 +63,30 @@ describe("parseCodexJsonl", () => {
         cachedInputTokens: 2,
         outputTokens: 4,
       },
+      costUsd: null,
+      errorMessage: null,
+    });
+  });
+
+  it("captures total_cost_usd from turn.completed events", () => {
+    const stdout = [
+      JSON.stringify({ type: "thread.started", thread_id: "thread_123" }),
+      JSON.stringify({
+        type: "turn.completed",
+        usage: { input_tokens: 10, cached_input_tokens: 2, output_tokens: 4 },
+        total_cost_usd: 0.00042,
+      }),
+    ].join("\n");
+
+    expect(parseCodexJsonl(stdout)).toEqual({
+      sessionId: "thread_123",
+      summary: "",
+      usage: {
+        inputTokens: 10,
+        cachedInputTokens: 2,
+        outputTokens: 4,
+      },
+      costUsd: 0.00042,
       errorMessage: null,
     });
   });

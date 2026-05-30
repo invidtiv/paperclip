@@ -84,7 +84,67 @@ function renderApiAccessNote(env: Record<string, string>): string {
 function resolveKimiBillingType(env: Record<string, string>): "api" | "subscription" | "unknown" {
   if (hasNonEmptyEnvValue(env, "KIMI_API_KEY")) return "api";
   if (hasNonEmptyEnvValue(env, "OPENAI_API_KEY")) return "api";
-  return "unknown";
+  return "subscription";
+}
+
+function shouldSimulateKimiApiCost(config: Record<string, unknown>): boolean {
+  return config.simulateApiCost === true;
+}
+
+function readNumberFromConfig(config: Record<string, unknown>, key: string, fallback: number): number {
+  const value = asNumber(config[key], Number.NaN);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function readKimiEstimatedRates(config: Record<string, unknown>): {
+  inputPerMillionUsd: number;
+  cachedInputPerMillionUsd: number;
+  outputPerMillionUsd: number;
+} {
+  return {
+    inputPerMillionUsd: readNumberFromConfig(config, "simulatedApiInputPerMillionUsd", 1.25),
+    cachedInputPerMillionUsd: readNumberFromConfig(config, "simulatedApiCachedInputPerMillionUsd", 0.125),
+    outputPerMillionUsd: readNumberFromConfig(config, "simulatedApiOutputPerMillionUsd", 10),
+  };
+}
+
+export function estimateKimiApiCostUsd(
+  usage: { inputTokens: number; cachedInputTokens: number; outputTokens: number },
+  rates: { inputPerMillionUsd: number; cachedInputPerMillionUsd: number; outputPerMillionUsd: number },
+): number {
+  const totalUsd =
+    (usage.inputTokens / 1_000_000) * rates.inputPerMillionUsd +
+    (usage.cachedInputTokens / 1_000_000) * rates.cachedInputPerMillionUsd +
+    (usage.outputTokens / 1_000_000) * rates.outputPerMillionUsd;
+  return Number(totalUsd.toFixed(8));
+}
+
+function resolveKimiCostUsd(input: {
+  parsedCostUsd: number | null | undefined;
+  usage: { inputTokens: number; cachedInputTokens: number; outputTokens: number };
+  billingType: "api" | "subscription" | "unknown";
+  config: Record<string, unknown>;
+}): number | null {
+  if (typeof input.parsedCostUsd === "number" && Number.isFinite(input.parsedCostUsd)) {
+    return input.parsedCostUsd;
+  }
+  if (input.billingType !== "subscription") {
+    return null;
+  }
+  if (!shouldSimulateKimiApiCost(input.config)) {
+    return null;
+  }
+  return estimateKimiApiCostUsd(input.usage, readKimiEstimatedRates(input.config));
+}
+
+function resolveReportedKimiBillingType(input: {
+  billingType: "api" | "subscription" | "unknown";
+  simulatedCostUsd: number | null;
+}): "api" | "metered_api" | "subscription" | "unknown" {
+  if (input.billingType === "subscription" && input.simulatedCostUsd != null) {
+    return "metered_api";
+  }
+  return input.billingType;
 }
 
 function normalizeRuntimeEnv(env: NodeJS.ProcessEnv): Record<string, string> {
@@ -493,6 +553,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       stderrLine ||
       `Kimi exited with code ${proc.exitCode ?? -1}`;
     const authRequired = detectKimiAuthRequired(proc.stdout, proc.stderr, parsedError);
+    const effectiveCostUsd = resolveKimiCostUsd({
+      parsedCostUsd: parsed.costUsd,
+      usage: parsed.usage,
+      billingType,
+      config,
+    });
+    const reportedBillingType = resolveReportedKimiBillingType({
+      billingType,
+      simulatedCostUsd: effectiveCostUsd,
+    });
     const resolvedSessionParams = {
       sessionId,
       cwd: effectiveExecutionCwd,
@@ -519,7 +589,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         provider: "kimi",
         biller: "kimi",
         model,
-        billingType,
+        billingType: reportedBillingType,
       };
     }
 
@@ -529,23 +599,22 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       timedOut: false,
       errorMessage: failed ? fallbackErrorMessage : null,
       errorCode: failed && authRequired ? "kimi_auth_required" : null,
-      usage: {
-        inputTokens: 0,
-        outputTokens: 0,
-        cachedInputTokens: 0,
-      },
+      usage: parsed.usage,
       sessionId,
       sessionParams: resolvedSessionParams,
       sessionDisplayId: sessionId,
       provider: "kimi",
       biller: "kimi",
       model,
-      billingType,
-      costUsd: null,
+      billingType: reportedBillingType,
+      costUsd: effectiveCostUsd,
       resultJson: {
         assistantMessageCount: parsed.assistantMessageCount,
         toolCallCount: parsed.toolCallCount,
         toolResultCount: parsed.toolResultCount,
+        ...(effectiveCostUsd != null && billingType === "subscription"
+          ? { simulatedApiCostUsd: effectiveCostUsd }
+          : {}),
         ...(failed ? { stderr: proc.stderr, nonJsonLines: parsed.nonJsonLines } : {}),
       },
       summary: parsed.summary,
