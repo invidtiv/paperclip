@@ -1,0 +1,2 @@
+ALTER TABLE "agents" ALTER COLUMN "adapter_type" SET DEFAULT 'autohand_local';--> statement-breakpoint
+ALTER TABLE "agents" ALTER COLUMN "adapter_config" SET DEFAULT '{"model":"deepseek/deepseek-v4-flash:free"}'::jsonb;
